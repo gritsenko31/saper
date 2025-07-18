@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <title>Сапёр 9x9</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      display: flex;
+      justify-content: center;
+      margin-top: 30px;
+    }
+    #game {
+      text-align: center;
+    }
+    table {
+      border-collapse: collapse;
+      margin: auto;
+    }
+    td {
+      width: 30px;
+      height: 30px;
+      border: 1px solid #888;
+      text-align: center;
+      vertical-align: middle;
+      font-size: 18px;
+      background-color: #ccc;
+      cursor: pointer;
+      user-select: none;
+    }
+    td.revealed {
+      background-color: #eee;
+      cursor: default;
+    }
+    td.flagged {
+      background-color: #f88;
+    }
+    .status {
+      margin: 10px 0;
+      font-size: 18px;
+    }
+    button {
+      padding: 6px 14px;
+      font-size: 16px;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div id="game">
+    <h2>Сапёр 9x9</h2>
+    <div class="status">
+      ⏱ Время: <span id="timer">0</span> сек |
+      💣 Осталось мин: <span id="minesLeft">10</span>
+    </div>
+    <table id="board"></table>
+    <button onclick="startNewGame()">Новая игра</button>
+  </div>
+
+  <script>
+    const SIZE = 9;
+    const MINES = 10;
+    let board = [];
+    let minePositions = [];
+    let mineLeft = MINES;
+    let timer = 0;
+    let interval = null;
+    let gameOver = false;
+    let revealedCount = 0;
+
+    const table = document.getElementById('board');
+    const timerSpan = document.getElementById('timer');
+    const minesLeftSpan = document.getElementById('minesLeft');
+
+    function startNewGame() {
+      clearInterval(interval);
+      timer = 0;
+      timerSpan.textContent = '0';
+      mineLeft = MINES;
+      minesLeftSpan.textContent = MINES;
+      gameOver = false;
+      revealedCount = 0;
+      generateBoard();
+      interval = setInterval(() => {
+        timer++;
+        timerSpan.textContent = timer;
+      }, 1000);
+    }
+
+    function generateBoard() {
+      board = [];
+      minePositions = [];
+      table.innerHTML = '';
+
+      for (let row = 0; row < SIZE; row++) {
+        board[row] = [];
+        const tr = document.createElement('tr');
+        for (let col = 0; col < SIZE; col++) {
+          const td = document.createElement('td');
+          td.dataset.row = row;
+          td.dataset.col = col;
+          td.oncontextmenu = e => {
+            e.preventDefault();
+            handleRightClick(td);
+          };
+          td.onclick = () => handleLeftClick(td);
+          tr.appendChild(td);
+          board[row][col] = { mine: false, revealed: false, flagged: false, element: td };
+        }
+        table.appendChild(tr);
+      }
+
+      let placed = 0;
+      while (placed < MINES) {
+        const r = Math.floor(Math.random() * SIZE);
+        const c = Math.floor(Math.random() * SIZE);
+        if (!board[r][c].mine) {
+          board[r][c].mine = true;
+          minePositions.push([r, c]);
+          placed++;
+        }
+      }
+    }
+
+    function countMines(row, col) {
+      let count = 0;
+      for (let dr = -1; dr <= 1; dr++) {
+        for (let dc = -1; dc <= 1; dc++) {
+          const r = row + dr;
+          const c = col + dc;
+          if (r >= 0 && r < SIZE && c >= 0 && c < SIZE && board[r][c].mine) {
+            count++;
+          }
+        }
+      }
+      return count;
+    }
+
+    function handleLeftClick(td) {
+      if (gameOver) return;
+      const row = +td.dataset.row;
+      const col = +td.dataset.col;
+      const cell = board[row][col];
+      if (cell.revealed || cell.flagged) return;
+
+      cell.revealed = true;
+      td.classList.add('revealed');
+      revealedCount++;
+
+      if (cell.mine) {
+        td.textContent = '💣';
+        revealAllMines();
+        endGame(false);
+      } else {
+        const minesAround = countMines(row, col);
+        if (minesAround > 0) {
+          td.textContent = minesAround;
+        } else {
+          revealEmpty(row, col);
+        }
+        checkWin();
+      }
+    }
+
+    function handleRightClick(td) {
+      if (gameOver) return;
+      const row = +td.dataset.row;
+      const col = +td.dataset.col;
+      const cell = board[row][col];
+
+      if (cell.revealed) return;
+
+      cell.flagged = !cell.flagged;
+      td.classList.toggle('flagged');
+      td.textContent = cell.flagged ? '🚩' : '';
+
+      mineLeft += cell.flagged ? -1 : 1;
+      minesLeftSpan.textContent = mineLeft;
+    }
+
+    function revealEmpty(row, col) {
+      for (let dr = -1; dr <= 1; dr++) {
+        for (let dc = -1; dc <= 1; dc++) {
+          const r = row + dr;
+          const c = col + dc;
+          if (r >= 0 && r < SIZE && c >= 0 && c < SIZE) {
+            const cell = board[r][c];
+            if (!cell.revealed && !cell.mine && !cell.flagged) {
+              cell.revealed = true;
+              revealedCount++;
+              const td = cell.element;
+              td.classList.add('revealed');
+              const minesAround = countMines(r, c);
+              if (minesAround > 0) {
+                td.textContent = minesAround;
+              } else {
+                revealEmpty(r, c);
+              }
+            }
+          }
+        }
+      }
+    }
+
+    function revealAllMines() {
+      for (const [r, c] of minePositions) {
+        const cell = board[r][c];
+        const td = cell.element;
+        if (!cell.flagged) {
+          td.textContent = '💣';
+          td.classList.add('revealed');
+        }
+      }
+    }
+
+    function checkWin() {
+      const totalSafeCells = SIZE * SIZE - MINES;
+      if (revealedCount === totalSafeCells) {
+        endGame(true);
+      }
+    }
+
+    function endGame(won) {
+      gameOver = true;
+      clearInterval(interval);
+      setTimeout(() => {
+        alert(won ? 'Поздравляем, вы победили!' : 'Вы проиграли!');
+      }, 100);
+    }
+
+    startNewGame();
+  </script>
+</body>
+</html>
