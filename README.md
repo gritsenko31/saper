@@ -67,22 +67,6 @@ Each number shows how many mines touch that square (including diagonally) [web:3
 
 Visit [vibecodegames.org/minesweeper](https://www.vibecodegames.org/minesweeper/) to play instantly.
 
-### Run Locally
-
-```bash
-# Clone the repository
-git clone https://github.com/gritsenko31/saper.git
-
-# Navigate to directory
-cd saper
-
-# Open in browser
-# Option 1: Double-click index.html
-# Option 2: Use local server
-python -m http.server 8000
-# Visit http://localhost:8000
-No build tools or dependencies required! 🎯
-
 
 🐛 Known Issues
 None currently! Report bugs via GitHub Issues.
